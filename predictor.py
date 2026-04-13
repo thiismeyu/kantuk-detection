@@ -1,31 +1,8 @@
-# -*- coding: utf-8 -*-
 import os
-import requests
 import numpy as np
 import tensorflow as tf
-from config import MODEL_PATHS, HF_MODELS, MODELS_DIR, CLASS_NAMES, NUM_CLASSES, CONFIDENCE_MIN
-
-os.makedirs(MODELS_DIR, exist_ok=True)
-
-def download_models():
-    for local_name, url in HF_MODELS.items():
-        path = os.path.join(MODELS_DIR, local_name)
-        if os.path.exists(path) and os.path.getsize(path) > 1_000_000:
-            print(f"Model {local_name} already exists")
-            continue
-        try:
-            print(f"Downloading {local_name}...")
-            r = requests.get(url, stream=True, timeout=120)
-            if r.status_code == 200:
-                with open(path, 'wb') as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                print(f"Downloaded {local_name}")
-            else:
-                print(f"Failed to download {local_name}: {r.status_code}")
-        except Exception as e:
-            print(f"Error downloading {local_name}: {e}")
+from huggingface_hub import hf_hub_download
+from config import CLASS_NAMES, NUM_CLASSES, CONFIDENCE_MIN
 
 class DrowsinessPredictor:
     def __init__(self, val_accuracies=None):
@@ -33,30 +10,50 @@ class DrowsinessPredictor:
         self.weights = {}
         self.is_loaded = False
         self.load_error = None
-        download_models()
-        self._load_models(val_accuracies)
-    
-    def _load_models(self, val_accuracies):
+        self._download_and_load_models(val_accuracies)
+
+    def _download_and_load_models(self, val_accuracies):
+        print("[INFO] Menghubungkan ke Hugging Face Hub...")
         loaded_accs = {}
-        for name, path in MODEL_PATHS.items():
-            if not os.path.exists(path):
-                print(f"Model {name} not found at {path}")
-                continue
+        
+        # Ganti dengan username dan repo model kamu!
+        model_repo_id = "ayuuuuuuu/drowsiness-model"
+        
+        model_files = {
+            "InceptionV3": "InceptionV3_after_finetune.h5",
+            "MobileNetV2": "MobileNetV2_after_finetune.h5",
+            "ResNet50V2": "ResNet50V2_after_finetune.h5",
+        }
+
+        for name, filename in model_files.items():
             try:
-                model = tf.keras.models.load_model(path, compile=False, safe_mode=False)
+                print(f"Mengunduh {filename}...")
+                model_path = hf_hub_download(
+                    repo_id=model_repo_id,
+                    filename=filename,
+                    token=os.environ.get("HF_TOKEN")
+                )
+                
+                print(f"Memuat model {name}...")
+                model = tf.keras.models.load_model(model_path, compile=False, safe_mode=False)
                 self.models[name] = model
+                
                 acc = (val_accuracies or {}).get(name, 100.0)
                 loaded_accs[name] = acc
-                print(f"Loaded {name}")
+                print(f"✅ {name} berhasil!")
+
             except Exception as e:
-                print(f"Error loading {name}: {e}")
+                print(f"Gagal memuat {name}: {e}")
+
         if not self.models:
-            self.load_error = "No models could be loaded"
+            self.load_error = "Tidak ada model yang bisa dimuat."
             return
+
         total = sum(loaded_accs.values())
         self.weights = {name: acc/total for name, acc in loaded_accs.items()} if total > 0 else {name: 1/len(self.models) for name in self.models}
         self.is_loaded = True
-    
+        print("Semua model siap!")
+
     def predict(self, roi_input):
         if not self.is_loaded or roi_input is None:
             return {"class_name": "unknown", "confidence": 0.0, "per_model": {}, "is_reliable": False, "error": self.load_error}
