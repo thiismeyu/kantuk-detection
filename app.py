@@ -1,18 +1,28 @@
 # -*- coding: utf-8 -*-
 import os
 import time
-import cv2
-import numpy as np
+import sys
 import streamlit as st
 
-# ========== MEDIAPIPE HANDLING ==========
+# ========== HANDLE OPENCV IMPORT ==========
+try:
+    import cv2
+    import numpy as np
+    OPENCV_AVAILABLE = True
+except ImportError as e:
+    OPENCV_AVAILABLE = False
+    st.error(f"OpenCV import error: {e}")
+    st.info("Please check requirements.txt has opencv-python-headless")
+    st.stop()
+
+# ========== HANDLE MEDIAPIPE IMPORT ==========
 try:
     import mediapipe as mp
     MEDIAPIPE_AVAILABLE = True
 except ImportError as e:
     MEDIAPIPE_AVAILABLE = False
     st.error(f"MediaPipe import error: {e}")
-    st.info("Please check requirements.txt has mediapipe==0.10.9")
+    st.stop()
 
 from config import PERCLOS_WINDOW, PERCLOS_THRESHOLD, YAWN_THRESHOLD, ALARM_COOLDOWN
 from utils import get_eye_rois, get_mouth_roi, preprocess_roi, PERCLOSDetector, draw_futuristic_overlay, play_alarm_html
@@ -51,23 +61,18 @@ def load_predictor():
 
 @st.cache_resource
 def load_face_mesh():
-    """Load MediaPipe FaceMesh dengan error handling"""
     if not MEDIAPIPE_AVAILABLE:
-        st.session_state.mediapipe_error = "MediaPipe not available"
         return None
-    
     try:
         mp_face = mp.solutions.face_mesh
-        face_mesh = mp_face.FaceMesh(
+        return mp_face.FaceMesh(
             max_num_faces=1,
             refine_landmarks=True,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
-        return face_mesh
     except Exception as e:
         st.session_state.mediapipe_error = str(e)
-        st.error(f"MediaPipe FaceMesh error: {e}")
         return None
 
 def main():
@@ -77,27 +82,15 @@ def main():
     st.markdown('<div class="main-header">🚗 DROWSGUARD</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Real-time Driver Drowsiness Detection System</div>', unsafe_allow_html=True)
     
-    # ========== CEK MEDIAPIPE ==========
-    if not MEDIAPIPE_AVAILABLE:
-        st.error("❌ MediaPipe tidak tersedia! Silakan periksa requirements.txt")
-        st.code("""
-        Solusi:
-        1. Pastikan mediapipe==0.10.9 ada di requirements.txt
-        2. Restart deployment di Streamlit Cloud
-        3. Jika masih error, tambahkan:
-           opencv-python-headless==4.9.0.80
-           protobuf==3.20.3
-        """)
+    if not OPENCV_AVAILABLE:
+        st.error("❌ OpenCV not available. Please check requirements.txt")
         st.stop()
     
-    # ========== LOAD MODELS ==========
     with st.spinner("Loading AI Models..."):
         if st.session_state.predictor is None:
             st.session_state.predictor = load_predictor()
-        
         if st.session_state.face_mesh is None:
             st.session_state.face_mesh = load_face_mesh()
-        
         if st.session_state.detector is None:
             st.session_state.detector = PERCLOSDetector(
                 window=PERCLOS_WINDOW, 
@@ -106,22 +99,17 @@ def main():
                 alarm_cooldown=ALARM_COOLDOWN
             )
     
-    # ========== CEK MODEL READY ==========
     model_ready = st.session_state.predictor and st.session_state.predictor.is_ready()
     facemesh_ready = st.session_state.face_mesh is not None
     
     if not model_ready:
         st.error("❌ Models failed to load. Check HuggingFace links in config.py")
-        st.info(f"Looking for models in: {os.path.abspath('models')}")
         st.stop()
     
     if not facemesh_ready:
         st.error("❌ MediaPipe FaceMesh failed to load")
-        if st.session_state.mediapipe_error:
-            st.code(f"Error: {st.session_state.mediapipe_error}")
         st.stop()
     
-    # ========== UI LAYOUT ==========
     col_cam, col_info = st.columns([3, 2], gap="large")
     
     with col_cam:
@@ -173,7 +161,6 @@ def main():
                         st.session_state.total_frames += 1
                         h, w = frame.shape[:2]
                         
-                        # Process every 2 frames for performance
                         if frame_idx % 2 == 0:
                             try:
                                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -184,7 +171,6 @@ def main():
                                     left_eye, right_eye = get_eye_rois(frame, lm, h, w)
                                     mouth = get_mouth_roi(frame, lm, h, w)
                                     
-                                    # Predict eye state
                                     eye_state = "open_eye"
                                     if left_eye is not None:
                                         inp = preprocess_roi(left_eye)
@@ -193,7 +179,6 @@ def main():
                                             if pred and not pred.get("error"):
                                                 eye_state = pred["class_name"]
                                     
-                                    # Predict mouth state
                                     mouth_state = "open_eye"
                                     if mouth is not None:
                                         inp = preprocess_roi(mouth)
@@ -202,7 +187,6 @@ def main():
                                             if pred and not pred.get("error"):
                                                 mouth_state = pred["class_name"]
                                     
-                                    # Update detector
                                     is_drowsy, perclos, yawn_count, should_alarm = st.session_state.detector.update(
                                         eye_state, mouth_state, time.time()
                                     )
@@ -210,7 +194,6 @@ def main():
                                     st.session_state.last_perclos = perclos
                                     st.session_state.last_yawn_count = yawn_count
                                     
-                                    # Update status
                                     if perclos >= PERCLOS_THRESHOLD or yawn_count >= YAWN_THRESHOLD:
                                         st.session_state.last_status = "drowsy"
                                         st.session_state.drowsy_count += 1
@@ -219,14 +202,11 @@ def main():
                                     else:
                                         st.session_state.last_status = "normal"
                                     
-                                    # Play alarm if needed
                                     if should_alarm:
                                         st.components.v1.html(play_alarm_html(), height=0, width=0)
                             except Exception as e:
-                                # Skip frame if processing error
                                 pass
                         
-                        # Draw overlay and display
                         frame = draw_futuristic_overlay(
                             frame, 
                             st.session_state.last_status, 
@@ -236,7 +216,6 @@ def main():
                         )
                         video_placeholder.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
                         
-                        # Status badge
                         status_class = {
                             "normal": "status-normal", 
                             "warning": "status-warning", 
