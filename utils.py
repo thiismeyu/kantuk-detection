@@ -9,7 +9,12 @@ from config import (
     PERCLOS_WINDOW, PERCLOS_THRESHOLD, YAWN_THRESHOLD
 )
 
-clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP, tileGridSize=CLAHE_GRID)
+# CLAHE dengan error handling
+try:
+    clahe = cv2.createCLAHE(clipLimit=CLAHE_CLIP, tileGridSize=CLAHE_GRID)
+except:
+    # Fallback jika CLAHE gagal
+    clahe = None
 
 def crop_roi(frame, landmarks, indices, padding, h, w):
     try:
@@ -30,11 +35,13 @@ def preprocess_roi(roi):
     try:
         if roi is None or roi.size == 0:
             return None
-        lab = cv2.cvtColor(roi, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        l = clahe.apply(l)
-        lab = cv2.merge([l, a, b])
-        roi = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+        
+        # Gunakan CLAHE jika tersedia, jika tidak langsung resize
+        if clahe is not None:
+            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+            gray = clahe.apply(gray)
+            roi = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        
         roi = cv2.resize(roi, IMG_SIZE)
         roi = roi.astype(np.float32) / 255.0
         return np.expand_dims(roi, axis=0)
