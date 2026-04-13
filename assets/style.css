@@ -1,0 +1,130 @@
+/* DrowsGuard CSS - Simple & Clean */
+.stApp {
+    background: linear-gradient(135deg, #0a0a1a 0%, #0f0f2a 100%);
+}
+
+.main-header {
+    text-align: center;
+    font-size: 3rem;
+    font-weight: bold;
+    background: linear-gradient(90deg, #00ff88, #00ccff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.sub-header {
+    text-align: center;
+    color: #8899aa;
+    margin-bottom: 2rem;
+}
+
+.glass-card {
+    background: rgba(20, 30, 50, 0.5);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.metric-card {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #00ff88;
+}
+
+.metric-label {
+    font-size: 0.7rem;
+    color: #8899aa;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    margin: 0.5rem 0;
+}
+
+.status-normal {
+    background: rgba(0, 255, 100, 0.2);
+    border: 1px solid #00ff64;
+    color: #00ff64;
+}
+
+.status-warning {
+    background: rgba(255, 200, 0, 0.2);
+    border: 1px solid #ffc800;
+    color: #ffc800;
+}
+
+.status-drowsy {
+    background: rgba(255, 50, 50, 0.2);
+    border: 1px solid #ff3232;
+    color: #ff3232;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.alert-box {
+    background: rgba(255, 50, 50, 0.3);
+    border: 2px solid #ff3232;
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    font-weight: bold;
+    color: #ff6464;
+}
+
+.perclos-bar-bg {
+    background: #2a2a3e;
+    border-radius: 10px;
+    height: 10px;
+    margin: 0.5rem 0;
+}
+
+.perclos-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: #00ff88;
+}
+
+.info-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    padding: 1rem;
+    font-size: 0.8rem;
+    color: #aabbcc;
+}
+
+.camera-placeholder {
+    background: #0f0f1a;
+    border-radius: 20px;
+    border: 2px dashed #334155;
+    padding: 3rem;
+    text-align: center;
+}
+
+.stButton > button {
+    background: linear-gradient(90deg, #00ff88, #00ccff);
+    color: #0a0a1a;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    padding: 0.5rem 1rem;
+}
+
+.stButton > button:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+}
