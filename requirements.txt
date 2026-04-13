@@ -4,5 +4,5 @@ numpy==1.23.5
 tensorflow==2.13.0
 mediapipe==0.10.7
 protobuf==3.20.3
-pillow==10.0.0
+pillow==9.5.0
 requests==2.31.0
