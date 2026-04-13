@@ -1,33 +1,60 @@
 # -*- coding: utf-8 -*-
 import os
-import time
+import subprocess
 import sys
+
+# ========== FIX LIBGL UNTUK STREAMLIT CLOUD ==========
+def fix_libgl():
+    """
+    Install libGL secara otomatis jika tidak ditemukan.
+    Streamlit Cloud memiliki akses sudo saat runtime!
+    """
+    try:
+        # Cek apakah libGL tersedia
+        import ctypes
+        ctypes.CDLL("libGL.so.1")
+        print("✅ libGL.so.1 already available")
+        return True
+    except OSError:
+        print("⚠️ libGL.so.1 not found, attempting to install...")
+        try:
+            # Install libGL menggunakan apt-get (Streamlit Cloud mendukung sudo)
+            subprocess.run(
+                ["sudo", "apt-get", "update", "-qq"], 
+                check=True, 
+                capture_output=True
+            )
+            subprocess.run(
+                ["sudo", "apt-get", "install", "-y", "-qq", "libgl1-mesa-glx"], 
+                check=True, 
+                capture_output=True
+            )
+            print("✅ libGL successfully installed!")
+            return True
+        except Exception as e:
+            print(f"⚠️ Failed to install libGL: {e}")
+            return False
+
+# Jalankan fix di awal
+fix_libgl()
+
+# ========== IMPORT LIBRARIES ==========
+import time
+import cv2
+import numpy as np
 import streamlit as st
+import mediapipe as mp
 
-# ========== HANDLE OPENCV IMPORT ==========
-try:
-    import cv2
-    import numpy as np
-    OPENCV_AVAILABLE = True
-except ImportError as e:
-    OPENCV_AVAILABLE = False
-    st.error(f"OpenCV import error: {e}")
-    st.info("Please check requirements.txt has opencv-python-headless")
-    st.stop()
-
-# ========== HANDLE MEDIAPIPE IMPORT ==========
-try:
-    import mediapipe as mp
-    MEDIAPIPE_AVAILABLE = True
-except ImportError as e:
-    MEDIAPIPE_AVAILABLE = False
-    st.error(f"MediaPipe import error: {e}")
-    st.stop()
-
-from config import PERCLOS_WINDOW, PERCLOS_THRESHOLD, YAWN_THRESHOLD, ALARM_COOLDOWN
-from utils import get_eye_rois, get_mouth_roi, preprocess_roi, PERCLOSDetector, draw_futuristic_overlay, play_alarm_html
+from config import (
+    PERCLOS_WINDOW, PERCLOS_THRESHOLD, YAWN_THRESHOLD, ALARM_COOLDOWN
+)
+from utils import (
+    get_eye_rois, get_mouth_roi, preprocess_roi,
+    PERCLOSDetector, draw_futuristic_overlay, play_alarm_html
+)
 from predictor import DrowsinessPredictor
 
+# Rest of your app code continues here...
 st.set_page_config(page_title="DrowsGuard", page_icon="🚗", layout="wide", initial_sidebar_state="collapsed")
 
 def load_css():
@@ -61,8 +88,6 @@ def load_predictor():
 
 @st.cache_resource
 def load_face_mesh():
-    if not MEDIAPIPE_AVAILABLE:
-        return None
     try:
         mp_face = mp.solutions.face_mesh
         return mp_face.FaceMesh(
@@ -81,10 +106,6 @@ def main():
     
     st.markdown('<div class="main-header">🚗 DROWSGUARD</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">Real-time Driver Drowsiness Detection System</div>', unsafe_allow_html=True)
-    
-    if not OPENCV_AVAILABLE:
-        st.error("❌ OpenCV not available. Please check requirements.txt")
-        st.stop()
     
     with st.spinner("Loading AI Models..."):
         if st.session_state.predictor is None:
